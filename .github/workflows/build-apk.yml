@@ -28,11 +28,24 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Android SDK einrichten
-        uses: android-actions/setup-android@v3
-
-      - name: SDK-Pakete installieren
-        run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+      # Der Runner bringt das Android SDK mit; hier werden nur Lizenzen
+      # bestaetigt und die benoetigten Pakete nachgezogen.
+      - name: Android SDK vorbereiten
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          shopt -s nullglob
+          candidates=("$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager)
+          if [ ${#candidates[@]} -eq 0 ]; then
+            echo "Kein sdkmanager unter $SDK_ROOT gefunden" >&2
+            exit 1
+          fi
+          SDKMANAGER="${candidates[0]}"
+          echo "sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Gradle einrichten
         uses: gradle/actions/setup-gradle@v4
